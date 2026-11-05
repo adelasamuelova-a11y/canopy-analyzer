@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canopy Analyzer | Analýza zápoje korun a otevřenosti oblohy</title>
+  <style>
+    :root {
+      --primary: #1976d2;
+      --primary-dark: #115293;
+      --accent-green: #2e7d32;
+      --green-bg: #e8f5e9;
+      --accent-blue: #0288d1;
+      --blue-bg: #e1f5fe;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #263238;
+      --text-muted: #546e7a;
+      --border: #cfd8dc;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    
+    /* Header */
+    header { background: #1e293b; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    header h1 { font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    header p { font-size: 0.85rem; color: #94a3b8; }
+    .badge-web { background: #059669; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Layout */
+    .container { display: flex; flex: 1; padding: 16px; gap: 16px; max-width: 1600px; margin: 0 auto; width: 100%; }
+    @media (max-width: 1024px) { .container { flex-direction: column; } }
+
+    /* Sidebar */
+    .sidebar { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+    @media (max-width: 1024px) { .sidebar { width: 100%; } }
+
+    .card { background: var(--card); border-radius: 10px; padding: 16px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px 14px; border-radius: 6px; border: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--accent-green); color: #fff; }
+    .btn-success:hover { background: #1b5e20; }
+    .btn-secondary { background: #e2e8f0; color: #334155; }
+    .btn-secondary:hover { background: #cbd5e1; }
+    .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+
+    /* File upload */
+    .drop-zone { border: 2px dashed #94a3b8; border-radius: 8px; padding: 16px 12px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--primary); background: #f0f7ff; }
+    .drop-zone input { display: none; }
+    .drop-zone p { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* Navigation */
+    .nav-bar { display: flex; align-items: center; justify-content: space-between; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-top: 8px; }
+    .nav-btn { background: #fff; border: 1px solid var(--border); padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .nav-counter { font-size: 0.85rem; font-weight: 700; color: #475569; }
+
+    /* Results */
+    .stat-card { border-radius: 8px; padding: 10px 14px; border: 1px solid; margin-bottom: 8px; }
+    .stat-card.green { background: var(--green-bg); border-color: #a5d6a7; color: var(--accent-green); }
+    .stat-card.blue { background: var(--blue-bg); border-color: #90caf9; color: var(--accent-blue); }
+    .stat-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-val { font-size: 1.6rem; font-weight: 800; line-height: 1.2; margin-top: 2px; }
+
+    /* Sliders */
+    .slider-group { margin-bottom: 12px; }
+    .slider-head { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    input[type=range] { width: 100%; accent-color: var(--primary); cursor: pointer; }
+
+    /* View Panel */
+    .view-panel { flex: 1; display: flex; flex-direction: column; background: var(--card); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 500px; }
+    .view-toolbar { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .view-modes { display: flex; gap: 6px; }
+    .mode-btn { background: #fff; border: 1px solid var(--border); padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-muted); }
+    .mode-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .canvas-container { flex: 1; display: flex; align-items: center; justify-content: center; background: #1e1e1e; padding: 10px; position: relative; overflow: hidden; }
+    canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+
+    .empty-state { text-align: center; color: #94a3b8; padding: 40px 20px; }
+    .empty-state svg { width: 64px; height: 64px; margin-bottom: 12px; opacity: 0.6; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>🌲 Canopy Analyzer Web <span class="badge-web">Běží v prohlížeči</span></h1>
+      <p>Hodnocení zápoje korun a otevřenosti oblohy z hemisférických fotografií („rybí oko“)</p>
+    </div>
+    <div style="font-size: 0.8rem; color: #cbd5e1;">
+      100% v prohlížeči • Žádná instalace • Žádný Python
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Sidebar Controls -->
+    <div class="sidebar">
+      
+      <!-- Upload Box -->
+      <div class="card">
+        <label class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept="image/*">
+          <div style="font-size: 1.8rem;">📂</div>
+          <strong style="color: var(--primary); font-size: 0.95rem;">Vyberte fotografie</strong>
+          <p>nebo je přetáhněte myší sem (jednu i více najednou)</p>
+        </label>
+
+        <!-- Navigation -->
+        <div class="nav-bar" id="navBar" style="display: none;">
+          <button class="nav-btn" id="btnPrev">◀ Předchozí</button>
+          <span class="nav-counter" id="counterText">0 / 0</span>
+          <button class="nav-btn" id="btnNext">Další ▶</button>
+        </div>
+        <div id="fileNameText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; word-break: break-all;"></div>
+      </div>
+
+      <!-- Results Stats Cards -->
+      <div class="card">
+        <div class="stat-card green">
+          <div class="stat-title">🌲 Zápoj korun (Canopy Cover / Closure)</div>
+          <div class="stat-val" id="statClosure">-- %</div>
+          <div style="font-size: 0.75rem; opacity: 0.85;">Plocha korun, větví a kmenů (černá)</div>
+        </div>
+
+        <div class="stat-card blue">
+          <div class="stat-title">☁️ Otevřenost oblohy (Canopy Openness)</div>
+          <div class="stat-val" id="statOpenness">-- %</div>
+          <div style="font-size: 0.75rem; opacity: 0.85;">Plocha volného nebe a mezer (bílá)</div>
+        </div>
+      </div>
+
+      <!-- Threshold Controls -->
+      <div class="card">
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>⚙️ Práh binarizace (Threshold):</span>
+            <span id="threshValText" style="color: var(--primary); font-weight: 700;">128</span>
+          </div>
+          <input type="range" id="threshSlider" min="0" max="255" value="128">
+        </div>
+        <button class="btn btn-secondary" id="btnAutoOtsu" style="font-size: 0.8rem; padding: 6px;">
+          ⚡ Nastavit optimální práh (Otsu)
+        </button>
+      </div>
+
+      <!-- Circle Boundary Controls -->
+      <div class="card">
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>⭕ Poloměr kruhu (Radius):</span>
+            <span id="radiusValText" style="font-weight: 700;">240 px</span>
+          </div>
+          <input type="range" id="radiusSlider" min="20" max="1500" value="240">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="slider-group">
+            <div class="slider-head"><span>Střed X:</span><span id="cxValText">0</span></div>
+            <input type="range" id="cxSlider" min="0" max="1000" value="0">
+          </div>
+          <div class="slider-group">
+            <div class="slider-head"><span>Střed Y:</span><span id="cyValText">0</span></div>
+            <input type="range" id="cySlider" min="0" max="1000" value="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch Export to CSV -->
+      <div class="card">
+        <button class="btn btn-success" id="btnBatchCsv">
+          📊 Spočítat vše a stáhnout tabulku CSV (Excel)
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Main View Panel -->
+    <div class="view-panel">
+      <div class="view-toolbar">
+        <div class="view-modes">
+          <button class="mode-btn active" data-mode="split">Vedle sebe (Původní / Černobílá)</button>
+          <button class="mode-btn" data-mode="binary">Pouze černobílá</button>
+          <button class="mode-btn" data-mode="orig">Původní + kruh</button>
+        </div>
+        <button class="btn btn-outline" id="btnSaveBinary" style="width: auto; padding: 6px 14px; font-size: 0.8rem;">
+          💾 Stáhnout černobílý snímek (PNG)
+        </button>
+      </div>
+
+      <div class="canvas-container">
+        <div class="empty-state" id="emptyState">
+          <div style="font-size: 3rem;">📸</div>
+          <h3>Nahrajte fotografii rybího oka</h3>
+          <p style="font-size: 0.85rem; margin-top: 4px;">Klikněte vlevo na „Vyberte fotografie“ nebo sem fotku přetáhněte.</p>
+        </div>
+        <canvas id="displayCanvas" style="display: none;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let fileQueue = [];
+    let currentIndex = -1;
+    let currentImage = null;
+    let currentWidth = 0;
+    let currentHeight = 0;
+    let circleCenterX = 0;
+    let circleCenterY = 0;
+    let circleRadius = 240;
+    let threshold = 128;
+    let viewMode = 'split';
+
+    // Elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const navBar = document.getElementById('navBar');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const counterText = document.getElementById('counterText');
+    const fileNameText = document.getElementById('fileNameText');
+    const statClosure = document.getElementById('statClosure');
+    const statOpenness = document.getElementById('statOpenness');
+    const threshSlider = document.getElementById('threshSlider');
+    const threshValText = document.getElementById('threshValText');
+    const btnAutoOtsu = document.getElementById('btnAutoOtsu');
+    const radiusSlider = document.getElementById('radiusSlider');
+    const radiusValText = document.getElementById('radiusValText');
+    const cxSlider = document.getElementById('cxSlider');
+    const cxValText = document.getElementById('cxValText');
+    const cySlider = document.getElementById('cySlider');
+    const cyValText = document.getElementById('cyValText');
+    const canvas = document.getElementById('displayCanvas');
+    const emptyState = document.getElementById('emptyState');
+    const btnBatchCsv = document.getElementById('btnBatchCsv');
+    const btnSaveBinary = document.getElementById('btnSaveBinary');
+    const modeButtons = document.querySelectorAll('.mode-btn');
+
+    // Drag & drop handlers
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+      fileQueue = Array.from(files).filter(f => f.type.startsWith('image/'));
+      if (fileQueue.length === 0) return;
+      currentIndex = 0;
+      navBar.style.display = 'flex';
+      loadCurrentPhoto();
+    }
+
+    btnPrev.addEventListener('click', () => {
+      if (currentIndex > 0) { currentIndex--; loadCurrentPhoto(); }
+    });
+    btnNext.addEventListener('click', () => {
+      if (currentIndex < fileQueue.length - 1) { currentIndex++; loadCurrentPhoto(); }
+    });
+
+    function loadCurrentPhoto() {
+      const file = fileQueue[currentIndex];
+      counterText.textContent = `${currentIndex + 1} / ${fileQueue.length}`;
+      fileNameText.textContent = `${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+      btnPrev.disabled = (currentIndex === 0);
+      btnNext.disabled = (currentIndex === fileQueue.length - 1);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          currentImage = img;
+          currentWidth = img.naturalWidth;
+          currentHeight = img.naturalHeight;
+
+          // Set sliders
+          circleCenterX = Math.floor(currentWidth / 2);
+          circleCenterY = Math.floor(currentHeight / 2);
+
+          cxSlider.max = currentWidth;
+          cxSlider.value = circleCenterX;
+          cxValText.textContent = circleCenterX;
+
+          cySlider.max = currentHeight;
+          cySlider.value = circleCenterY;
+          cyValText.textContent = circleCenterY;
+
+          radiusSlider.max = Math.min(currentWidth, currentHeight);
+          // Auto estimate radius
+          circleRadius = autoDetectRadius(img, circleCenterX, circleCenterY);
+          radiusSlider.value = circleRadius;
+          radiusValText.textContent = `${circleRadius} px`;
+
+          emptyState.style.display = 'none';
+          canvas.style.display = 'block';
+
+          // Auto Otsu threshold
+          applyAutoOtsu();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function autoDetectRadius(img, cx, cy) {
+      // Estimate circle boundary
+      const maxR = Math.min(cx, cy, img.naturalWidth - cx, img.naturalHeight - cy);
+      return Math.floor(maxR * 0.72);
+    }
+
+    // Otsu Threshold calculation on Blue channel
+    function applyAutoOtsu() {
+      if (!currentImage) return;
+      
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = currentWidth;
+      offCanvas.height = currentHeight;
+      const ctx = offCanvas.getContext('2d');
+      ctx.drawImage(currentImage, 0, 0);
+
+      const imgData = ctx.getImageData(0, 0, currentWidth, currentHeight).data;
+      const r2 = circleRadius * circleRadius;
+      const hist = new Int32Array(256);
+      let totalPixels = 0;
+
+      for (let y = 0; y < currentHeight; y++) {
+        const dy = y - circleCenterY;
+        const dy2 = dy * dy;
+        for (let x = 0; x < currentWidth; x++) {
+          const dx = x - circleCenterX;
+          if (dx * dx + dy2 <= r2) {
+            const idx = (y * currentWidth + x) * 4;
+            const blue = imgData[idx + 2]; // Blue channel
+            hist[blue]++;
+            totalPixels++;
+          }
+        }
+      }
+
+      if (totalPixels === 0) return;
+
+      let sum = 0;
+      for (let t = 0; t < 256; t++) sum += t * hist[t];
+
+      let sumB = 0;
+      let wB = 0;
+      let maxVariance = 0;
+      let bestThresh = 128;
+
+      for (let t = 0; t < 256; t++) {
+        wB += hist[t];
+        if (wB === 0) continue;
+        const wF = totalPixels - wB;
+        if (wF === 0) break;
+
+        sumB += t * hist[t];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const variance = wB * wF * (mB - mF) * (mB - mF);
+
+        if (variance > maxVariance) {
+          maxVariance = variance;
+          bestThresh = t;
+        }
+      }
+
+      threshold = bestThresh;
+      threshSlider.value = threshold;
+      threshValText.textContent = `${threshold} (Auto-Otsu)`;
+      processAndRender();
+    }
+
+    btnAutoOtsu.addEventListener('click', applyAutoOtsu);
+
+    threshSlider.addEventListener('input', (e) => {
+      threshold = parseInt(e.target.value);
+      threshValText.textContent = threshold;
+      processAndRender();
+    });
+
+    radiusSlider.addEventListener('input', (e) => {
+      circleRadius = parseInt(e.target.value);
+      radiusValText.textContent = `${circleRadius} px`;
+      processAndRender();
+    });
+
+    cxSlider.addEventListener('input', (e) => {
+      circleCenterX = parseInt(e.target.value);
+      cxValText.textContent = circleCenterX;
+      processAndRender();
+    });
+
+    cySlider.addEventListener('input', (e) => {
+      circleCenterY = parseInt(e.target.value);
+      cyValText.textContent = circleCenterY;
+      processAndRender();
+    });
+
+    modeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        modeButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        viewMode = btn.dataset.mode;
+        processAndRender();
+      });
+    });
+
+    function processAndRender() {
+      if (!currentImage) return;
+
+      const w = currentWidth;
+      const h = currentHeight;
+
+      // 1. Offscreen source canvas
+      const srcCanvas = document.createElement('canvas');
+      srcCanvas.width = w;
+      srcCanvas.height = h;
+      const srcCtx = srcCanvas.getContext('2d');
+      srcCtx.drawImage(currentImage, 0, 0);
+
+      const srcData = srcCtx.getImageData(0, 0, w, h);
+      const px = srcData.data;
+
+      // 2. Offscreen binary canvas
+      const binCanvas = document.createElement('canvas');
+      binCanvas.width = w;
+      binCanvas.height = h;
+      const binCtx = binCanvas.getContext('2d');
+      const binData = binCtx.createImageData(w, h);
+      const bpx = binData.data;
+
+      const r2 = circleRadius * circleRadius;
+      let totalInside = 0;
+      let skyPixels = 0;
+
+      for (let y = 0; y < h; y++) {
+        const dy = y - circleCenterY;
+        const dy2 = dy * dy;
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const dx = x - circleCenterX;
+
+          if (dx * dx + dy2 <= r2) {
+            totalInside++;
+            const blue = px[idx + 2];
+            if (blue >= threshold) {
+              // Sky (White)
+              skyPixels++;
+              bpx[idx] = 255;
+              bpx[idx + 1] = 255;
+              bpx[idx + 2] = 255;
+              bpx[idx + 3] = 255;
+            } else {
+              // Canopy (Black)
+              bpx[idx] = 0;
+              bpx[idx + 1] = 0;
+              bpx[idx + 2] = 0;
+              bpx[idx + 3] = 255;
+            }
+          } else {
+            // Outside circle -> dark background
+            bpx[idx] = 30;
+            bpx[idx + 1] = 30;
+            bpx[idx + 2] = 30;
+            bpx[idx + 3] = 255;
+          }
+        }
+      }
+
+      binCtx.putImageData(binData, 0, 0);
+
+      // Stats
+      if (totalInside > 0) {
+        const openness = (skyPixels / totalInside) * 100.0;
+        const closure = 100.0 - openness;
+        statClosure.textContent = `${closure.toFixed(1)} %`;
+        statOpenness.textContent = `${openness.toFixed(1)} %`;
+      }
+
+      // Draw original with circle overlay
+      srcCtx.beginPath();
+      srcCtx.arc(circleCenterX, circleCenterY, circleRadius, 0, 2 * Math.PI);
+      srcCtx.strokeStyle = '#00e676';
+      srcCtx.lineWidth = Math.max(2, Math.floor(w / 400));
+      srcCtx.stroke();
+
+      // Render to main display canvas
+      if (viewMode === 'orig') {
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(srcCanvas, 0, 0);
+      } else if (viewMode === 'binary') {
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(binCanvas, 0, 0);
+      } else { // 'split'
+        canvas.width = w * 2;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(srcCanvas, 0, 0);
+        ctx.drawImage(binCanvas, w, 0);
+      }
+
+      // Cache for save
+      window.cachedBinCanvas = binCanvas;
+    }
+
+    // Save current binary PNG
+    btnSaveBinary.addEventListener('click', () => {
+      if (!window.cachedBinCanvas) return;
+      const link = document.createElement('a');
+      link.download = `bw_${fileQueue[currentIndex].name.replace(/\.[^/.]+$/, "")}.png`;
+      link.href = window.cachedBinCanvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // Batch Export CSV
+    btnBatchCsv.addEventListener('click', async () => {
+      if (fileQueue.length === 0) {
+        alert('Nejprve vyberte fotografie.');
+        return;
+      }
+
+      btnBatchCsv.disabled = true;
+      btnBatchCsv.textContent = '⏳ Počítám celou frontu...';
+
+      const results = [];
+      for (let i = 0; i < fileQueue.length; i++) {
+        const file = fileQueue[i];
+        const res = await processSingleFileForBatch(file);
+        if (res) results.push(res);
+      }
+
+      // Build CSV
+      let csvContent = '\uFEFFSoubor;Zapoj_korun_%;Otevrenost_oblohy_%;Prah_Otsu\r\n';
+      results.forEach(r => {
+        csvContent += `${r.name};${r.closure.toFixed(2).replace('.', ',')};${r.openness.toFixed(2).replace('.', ',')};${r.threshold}\r\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'vysledky_zapoj_batch.csv';
+      link.click();
+
+      btnBatchCsv.disabled = false;
+      btnBatchCsv.textContent = '📊 Spočítat vše a stáhnout tabulku CSV (Excel)';
+      alert(`Hotovo! Zpracováno ${results.length} fotografií. Tabulka CSV byla stažena do vašeho počítače.`);
+    });
+
+    function processSingleFileForBatch(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const w = img.naturalWidth;
+            const h = img.naturalHeight;
+            const cx = Math.floor(w / 2);
+            const cy = Math.floor(h / 2);
+            const r = autoDetectRadius(img, cx, cy);
+            const r2 = r * r;
+
+            const c = document.createElement('canvas');
+            c.width = w;
+            c.height = h;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const imgData = ctx.getImageData(0, 0, w, h).data;
+
+            // Otsu
+            const hist = new Int32Array(256);
+            let tot = 0;
+            for (let y = 0; y < h; y++) {
+              const dy2 = (y - cy) * (y - cy);
+              for (let x = 0; x < w; x++) {
+                if ((x - cx) * (x - cx) + dy2 <= r2) {
+                  const b = imgData[(y * w + x) * 4 + 2];
+                  hist[b]++;
+                  tot++;
+                }
+              }
+            }
+
+            if (tot === 0) return resolve(null);
+
+            let sum = 0;
+            for (let t = 0; t < 256; t++) sum += t * hist[t];
+            let sumB = 0, wB = 0, maxV = 0, bestT = 128;
+            for (let t = 0; t < 256; t++) {
+              wB += hist[t];
+              if (wB === 0) continue;
+              const wF = tot - wB;
+              if (wF === 0) break;
+              sumB += t * hist[t];
+              const mB = sumB / wB;
+              const mF = (sum - sumB) / wF;
+              const v = wB * wF * (mB - mF) * (mB - mF);
+              if (v > maxV) { maxV = v; bestT = t; }
+            }
+
+            // Count sky
+            let sky = 0;
+            for (let y = 0; y < h; y++) {
+              const dy2 = (y - cy) * (y - cy);
+              for (let x = 0; x < w; x++) {
+                if ((x - cx) * (x - cx) + dy2 <= r2) {
+                  const b = imgData[(y * w + x) * 4 + 2];
+                  if (b >= bestT) sky++;
+                }
+              }
+            }
+
+            const openness = (sky / tot) * 100.0;
+            const closure = 100.0 - openness;
+            resolve({ name: file.name, closure, openness, threshold: bestT });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
+</body>
+</html>
