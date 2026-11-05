@@ -2,6 +2,9 @@
 
 > **Moderní a rychlý nástroj pro hodnocení zápoje korun (Canopy Closure / Cover) a otevřenosti oblohy (Canopy Openness) z hemisférických fotografií („rybí oko“ / fisheye).**
 
+### 🌐 [👉 SPUSTIT WEBOVOU APLIKACI (ONLINE V PROHLÍŽEČI)](https://adelasamuelova-a11y.github.io/canopy-analyzer/)
+*Běží okamžitě na jakémkoliv počítači, mobilu i tabletu bez instalace a bez nutnosti mít Python!*
+
 Tento program slouží jako moderní, jednoduchá a spolehlivá alternativa ke starým nástrojům (jako je např. *Gap Light Analyzer - GLA*), která nevyžaduje složité ruční nastavování, nezamrzá na moderních systémech a podporuje prohlížení jednotlivých fotografií i hromadné dávkové vyhodnocení celých složek.
 
 ---
