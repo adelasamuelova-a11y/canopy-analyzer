@@ -1,0 +1,22 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Output data
+*.csv
+output/
+binarizovane/
+bw_*.png
+bw_*.jpg
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
